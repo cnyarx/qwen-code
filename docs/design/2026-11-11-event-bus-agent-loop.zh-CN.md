@@ -2,11 +2,11 @@
 
 [English](2026-11-11-event-bus-agent-loop.md) | [简体中文](2026-11-11-event-bus-agent-loop.zh-CN.md)
 
-- **状态**：提议中。实现从 PR 1（总线原语）开始；不改变任何 surface 的默认行为。
+- **状态**：提议中。PR 1（总线原语）已在 #16935 合入；PR 2（opt-in 标志后的 handler）已在 #16938 合入；不改变任何 surface 的默认行为。
 - **日期**：2026-11-11，基于 `origin/main` `da270e434957`。
 - **关联**：
   - [Unified agent loop](2026-10-23-unified-agent-loop.zh-CN.md) —— 本设计对其做内部架构升级的已批准设计；跟踪 issue #15327，#15343 批准，headless 已在 #15369 合入，ACP 模型轮已在 #15509 合入；
-  - 被移植架构的来源：`v1.0.0-preview` 分支 `587e3429cabf`，`packages/core/src/event-bus/`（19 个文件，6,237 行）；
+  - 被移植架构的来源：`v1.0.0-preview` 分支 `587e3429cabf`，`packages/core/src/event-bus/`（20 个文件，6,237 行）；
   - preview 移植试点 issue #16896（file-history 硬化）—— 另一条更小的独立线。
 
 ## 问题
