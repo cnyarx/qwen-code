@@ -471,6 +471,53 @@ describe('keyMatchers', () => {
       negative: [createKey('end'), createKey('end', { shift: true })],
     },
     {
+      command: Command.PREV_TURN,
+      positive: [createKey('pageup', { meta: true })],
+      negative: [
+        createKey('pageup'),
+        createKey('pagedown', { meta: true }),
+        createKey('s', { meta: true }),
+      ],
+    },
+    {
+      command: Command.NEXT_TURN,
+      positive: [createKey('pagedown', { meta: true })],
+      negative: [
+        createKey('pagedown'),
+        createKey('pageup', { meta: true }),
+        createKey('up', { meta: true }),
+      ],
+    },
+    {
+      command: Command.PREV_TOOL_OUTPUT,
+      positive: [createKey('up', { ctrl: true, meta: true })],
+      negative: [
+        createKey('up', { ctrl: true }),
+        createKey('up', { meta: true }),
+        createKey('up'),
+        createKey('down', { ctrl: true, meta: true }),
+      ],
+    },
+    {
+      command: Command.NEXT_TOOL_OUTPUT,
+      positive: [createKey('down', { ctrl: true, meta: true })],
+      negative: [
+        createKey('down', { ctrl: true }),
+        createKey('down', { meta: true }),
+        createKey('down'),
+        createKey('up', { ctrl: true, meta: true }),
+      ],
+    },
+    {
+      command: Command.TRANSCRIPT_SEARCH,
+      positive: [createKey('s', { meta: true })],
+      negative: [
+        createKey('s'),
+        createKey('s', { ctrl: true }),
+        createKey('r', { ctrl: true }),
+      ],
+    },
+    {
       command: Command.TOGGLE_THINKING_EXPANDED,
       positive: [
         createKey('t', { meta: true }),

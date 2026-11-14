@@ -214,6 +214,28 @@ describe('useTranscriptSearch', () => {
     expect(result.current.activeMatch?.index).toBe(4);
   });
 
+  it('previousMatch from a stored empty-position sentinel lands on the prior match', () => {
+    const { actions } = makeScrollActions(0);
+    const { result, rerender } = renderHook(
+      (props: { isActive: boolean; itemCount: number }) =>
+        useTranscriptSearch({
+          isActive: props.isActive,
+          query: 'ports',
+          items: buildVirtualItems(history.slice(0, props.itemCount), []),
+          scrollActions: actions,
+        }),
+      { initialProps: { isActive: true, itemCount: 0 } },
+    );
+    rerender({ isActive: true, itemCount: 3 });
+    // This is a clamped -1, so previous must select match 2 of 2, NOT loop
+    // through the sentinel to match 1. Mirrors nextMatch above, not a rerun.
+    act(() => result.current.previousMatch());
+    expect(result.current.matches).toHaveLength(2);
+    expect(result.current.activeMatch?.index).toBe(3);
+    act(() => result.current.nextMatch());
+    expect(result.current.activeMatch?.index).toBe(1);
+  });
+
   it('does not re-anchor on keystrokes while the search is closed', () => {
     const { actions, anchorReads } = makeScrollActions(4);
     const { rerender } = renderHook(

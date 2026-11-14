@@ -160,6 +160,49 @@ describe('searchTranscriptItems', () => {
     expect(indexes).toEqual([...indexes].sort((a, b) => a - b));
   });
 
+  it('does not call an exactly-full result set truncated', () => {
+    const items = buildVirtualItems([user(1, 'alpha'), user(2, 'alpha')], []);
+    expect(searchTranscriptItems(items, 'alpha', 2)).toEqual({
+      truncated: false,
+      matches: [
+        {
+          index: 1,
+          itemType: 'user',
+          snippet: 'alpha',
+        },
+        {
+          index: 2,
+          itemType: 'user',
+          snippet: 'alpha',
+        },
+      ],
+    });
+  });
+
+  it('anchors the snippet at a repeated-whitespace match, even in long text', () => {
+    const filler = `${'x\n\n\n'.repeat(40)}${'filler segment with ordinary words '.repeat(12)}`;
+    const items = buildVirtualItems(
+      [gemini(1, `${filler}beta  gamma tail`)],
+      [],
+    );
+    const { matches } = searchTranscriptItems(items, 'beta  gamma');
+    expect(matches).toHaveLength(1);
+    expect(matches[0].snippet).toContain('beta gamma');
+    expect(matches[0].snippet).not.toContain('filler segment 1');
+  });
+
+  it('escapes terminal control sequences in the rendered snippet', () => {
+    const items = buildVirtualItems(
+      [gemini(1, 'before\x1b]0;ATTACK\x07 after')],
+      [],
+    );
+    const { matches } = searchTranscriptItems(items, 'before');
+    expect(matches).toHaveLength(1);
+    expect(matches[0].snippet).not.toContain('\x1b');
+    expect(matches[0].snippet).not.toContain('\x07');
+    expect(matches[0].snippet).toContain('before');
+  });
+
   it('produces single-line snippets with ellipses around long matches', () => {
     const items = buildVirtualItems(
       [gemini(1, `${'x'.repeat(200)}\nneedle\n${'y'.repeat(200)}`)],

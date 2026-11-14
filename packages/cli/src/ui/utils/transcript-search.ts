@@ -5,6 +5,7 @@
  */
 
 import type { VpItem } from './virtual-items.js';
+import { sanitizeTerminalText } from './textUtils.js';
 
 /**
  * In-session transcript search over the same item array the virtual viewport
@@ -90,18 +91,21 @@ export function getSearchableText(item: VpItem): string {
   return text;
 }
 
-function makeSnippet(text: string, query: string): string {
-  const flat = text.replace(/\s+/g, ' ');
-  // Flattening whitespace shifts offsets, so locate the match again in the
-  // flattened text instead of reusing the raw-text position.
-  const found = flat.toLowerCase().indexOf(query);
-  const anchor = found >= 0 ? found : 0;
+function makeSnippet(
+  text: string,
+  rawPosition: number,
+  length: number,
+): string {
+  // Expand around the RAW match before sanitizing. Re-searching flattened
+  // text loses the match whenever the query contains repeated whitespace;
+  // it also cannot account for the length of an escaped control sequence.
   const radius = 48;
-  const from = Math.max(0, anchor - radius);
-  const to = Math.min(flat.length, anchor + query.length + radius);
+  const from = Math.max(0, rawPosition - radius);
+  const to = Math.min(text.length, rawPosition + length + radius);
+  const flat = sanitizeTerminalText(text.slice(from, to)).replace(/\s+/g, ' ');
   const prefix = from > 0 ? '…' : '';
-  const suffix = to < flat.length ? '…' : '';
-  return `${prefix}${flat.slice(from, to).trim()}${suffix}`;
+  const suffix = to < text.length ? '…' : '';
+  return `${prefix}${flat.trim()}${suffix}`;
 }
 
 /**
@@ -132,15 +136,17 @@ export function searchTranscriptItems(
     if (text.length === 0) continue;
     const position = text.toLowerCase().indexOf(normalized);
     if (position === -1) continue;
-    matches.push({
-      index,
-      itemType: item.type,
-      snippet: makeSnippet(text, normalized),
-    });
     if (matches.length >= maxMatches) {
+      // Exactly filling the cap is not truncation. Only a further match
+      // proves that older results were actually omitted.
       truncated = true;
       break;
     }
+    matches.push({
+      index,
+      itemType: item.type,
+      snippet: makeSnippet(text, position, normalized.length),
+    });
   }
   matches.reverse();
   return { matches, truncated };

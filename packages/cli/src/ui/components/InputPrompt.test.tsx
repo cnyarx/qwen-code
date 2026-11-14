@@ -5468,6 +5468,133 @@ describe('InputPrompt', () => {
       expect(stdout.lastFrame()).not.toContain('(find:)');
       expect(mockBuffer.setText).toHaveBeenLastCalledWith('draft text');
       expect(scrollToIndex).toHaveBeenCalledWith(7);
+      expect(scrollToEnd).not.toHaveBeenCalled();
+      unmount();
+    });
+
+    it('restores live-tail following with scrollToEnd instead of top-aligning the last item', async () => {
+      const pendingHistoryItems = [
+        { type: 'gemini' as const, text: 'current answer' },
+      ];
+      // Banner + user + gemini + this pending row = four items, anchor 3.
+      // Although the anchor is the last OUTPUT row, it is also the LAST ITEM,
+      // so Escape must not top-align a tall final output and lose follow.
+      getScrollIndex.mockReturnValue(3);
+      vi.mocked(useUIState).mockReturnValue({
+        isFeedbackDialogOpen: false,
+        messageQueue: [],
+        pendingLlmHistoryItems: [],
+        pendingHistoryItems,
+        history: [
+          { id: 1, type: 'user', text: 'deploy to prod' },
+          { id: 2, type: 'gemini', text: 'done' },
+        ],
+      } as unknown as ReturnType<typeof useUIState>);
+      const { stdin, stdout, unmount } = renderSearch();
+      await openSearch(stdin);
+
+      expect(stdout.lastFrame()).toContain('(find:)');
+      expect(mockBuffer.setText).toHaveBeenLastCalledWith('');
+      act(() => {
+        stdin.write('\x1b');
+      });
+      await wait();
+
+      expect(stdout.lastFrame()).not.toContain('(find:)');
+      expect(scrollToEnd).toHaveBeenCalledOnce();
+      expect(scrollToIndex).not.toHaveBeenCalled();
+      unmount();
+    });
+
+    it('keeps Ctrl+R inert so find owns the draft slot', async () => {
+      const { stdin, stdout, unmount } = renderSearch();
+      await openSearch(stdin);
+
+      act(() => {
+        mockBuffer.text = 'querytext';
+        stdin.write('\x12');
+      });
+      await wait();
+
+      expect(stdout.lastFrame()).toContain('(find:)');
+      expect(stdout.lastFrame()).not.toContain('(r:)');
+      act(() => {
+        stdin.write('\x1b');
+      });
+      await wait();
+
+      expect(stdout.lastFrame()).not.toContain('(r:)');
+      expect(mockBuffer.setText).toHaveBeenLastCalledWith('draft text');
+      unmount();
+    });
+
+    it('keeps shell toggle, shortcuts and suggestion acceptance out of the query', async () => {
+      const onToggleShortcuts = vi.fn();
+      const onPromptSuggestionDismiss = vi.fn();
+      const setShellModeActive = vi.fn();
+      const { stdin, stdout, unmount } = renderWithProviders(
+        <ScrollContext.Provider
+          value={{
+            scrollBy: vi.fn(),
+            hasScrollableTranscript: () => true,
+            scrollToIndex,
+            scrollToEnd,
+            getScrollIndex,
+          }}
+        >
+          <InputPrompt
+            {...props}
+            onToggleShortcuts={onToggleShortcuts}
+            onPromptSuggestionDismiss={onPromptSuggestionDismiss}
+            promptSuggestion="an unrelated suggestion"
+            setShellModeActive={setShellModeActive}
+          />
+        </ScrollContext.Provider>,
+      );
+      await openSearch(stdin);
+      for (const sequence of ['!', '?', '\t', '\x1b[C']) {
+        act(() => {
+          stdin.write(sequence);
+        });
+        await wait();
+      }
+
+      expect(stdout.lastFrame()).toContain('(find:)');
+      expect(stdout.lastFrame()).not.toContain('(r:)');
+      expect(mockBuffer.setText).toHaveBeenLastCalledWith('');
+      expect(onToggleShortcuts).not.toHaveBeenCalled();
+      expect(setShellModeActive).not.toHaveBeenCalled();
+      expect(onPromptSuggestionDismiss).not.toHaveBeenCalled();
+      expect(mockBuffer.insert).not.toHaveBeenCalled();
+      unmount();
+    });
+
+    it('does not start voice input for a space in the query', async () => {
+      const { stdin, unmount } = renderSearch();
+      await openSearch(stdin);
+      act(() => {
+        stdin.write(' ');
+      });
+      await wait();
+
+      expect(
+        mockedUseVoiceInput.mock.results[0].value.handleKeypress,
+      ).not.toHaveBeenCalled();
+      unmount();
+    });
+
+    it('renders normally when restored history arrays are absent', async () => {
+      vi.mocked(useUIState).mockReturnValue({
+        isFeedbackDialogOpen: false,
+        messageQueue: [],
+        pendingLlmHistoryItems: [],
+      } as unknown as ReturnType<typeof useUIState>);
+      const { stdin, stdout, unmount } = renderSearch();
+
+      // This is also how many pre-existing tests provide a partial UIState:
+      // absent arrays must not crash the component or block opening search.
+      await openSearch(stdin);
+      expect(stdout.lastFrame()).toContain('(find:)');
       unmount();
     });
   });
